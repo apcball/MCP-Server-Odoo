@@ -1519,6 +1519,75 @@ class MCPController(http.Controller):
                 'error': str(e)
             }, status=400)
 
+    # ─── Purchase Order endpoints ──────────────────────────────
+
+    @http.route('/mcp/call/purchase_order_search', type='http', auth='public', methods=['POST'], csrf=False)
+    def purchase_order_search(self, **kwargs):
+        """Search for purchase orders with optional filters"""
+        try:
+            self._verify_api_key()
+            data = json.loads(request.httprequest.data)
+            domain = data.get('domain', [])
+            field_list = data.get('fields', ['name', 'partner_id', 'date_order', 'date_planned', 'amount_total', 'amount_untaxed', 'state', 'invoice_status', 'currency_id', 'company_id', 'user_id', 'origin'])
+            limit = data.get('limit', 80)
+
+            orders = request.env['purchase.order'].sudo().search(domain, limit=limit)
+            result = [order.read(field_list)[0] for order in orders]
+
+            return request.make_json_response({
+                'success': True,
+                'data': result
+            })
+        except AccessDenied as e:
+            return request.make_json_response({
+                'success': False,
+                'error': str(e)
+            }, status=401)
+        except Exception as e:
+            return request.make_json_response({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+
+    @http.route('/mcp/call/purchase_order_read', type='http', auth='public', methods=['POST'], csrf=False)
+    def purchase_order_read(self, **kwargs):
+        """Read a specific purchase order by ID"""
+        try:
+            self._verify_api_key()
+            data = json.loads(request.httprequest.data)
+            order_id = data.get('id')
+            field_list = data.get('fields', ['name', 'partner_id', 'date_order', 'date_planned', 'amount_total', 'amount_untaxed', 'state', 'invoice_status', 'currency_id', 'company_id', 'user_id', 'origin', 'order_line', 'picking_count', 'invoice_count'])
+
+            if not order_id:
+                return request.make_json_response({
+                    'success': False,
+                    'error': 'id is required'
+                }, status=400)
+
+            order = request.env['purchase.order'].sudo().browse(order_id)
+            if not order.exists():
+                return request.make_json_response({
+                    'success': False,
+                    'error': 'Purchase order not found'
+                }, status=404)
+
+            result = order.read(field_list)[0]
+
+            return request.make_json_response({
+                'success': True,
+                'data': result
+            })
+        except AccessDenied as e:
+            return request.make_json_response({
+                'success': False,
+                'error': str(e)
+            }, status=401)
+        except Exception as e:
+            return request.make_json_response({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+
     # ─── Company endpoints ──────────────────────────────────────
 
     @http.route('/mcp/call/company_list', type='http', auth='public', methods=['POST'], csrf=False)
